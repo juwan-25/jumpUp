@@ -13,11 +13,15 @@ static const float GRAVITY = 0.2f;    //중력
 class Player
 {
 private:
+    //두더지 위치
     int x;
     int y;
+    //두더지 크기
     int imgWidth;
     int imgHeight;
+
     float dy;
+    //두더지 변경 이미지
     Sprite* imgJump;
     Sprite* imgReady;
     Texture t1;
@@ -72,13 +76,13 @@ public:
         {
             x -= 4;
         }
-        if (x <= 0)    //왼쪽 벽 뚫지 못하게
+        if (x <= -50)    //왼쪽 벽 뚫지 못하게
         {
-            x = 0;
+            x = -50;
         }
-        if (x >= WIDTH - imgWidth)    //오른쪽 벽 뚫지 못하게
+        if (x >= WIDTH - 150)    //오른쪽 벽 뚫지 못하게
         {
-            x = WIDTH - imgWidth;
+            x = WIDTH - 150;
         }
 
         jumpFlag = true;
@@ -132,12 +136,38 @@ public:
 class Bar
 {
 private:
-    int x;
-    int y;
+    struct Pos {
+        int x;
+        int y;
+    };
+    vector<Pos> vBar;
     int imgWidth;
+    Sprite* imgBar;
+    Texture t;
 public:
-   
+    Bar()
+    {
+        srand(static_cast<unsigned int>(time(nullptr)));
 
+        t.loadFromFile("images/ch4_bar1.png");
+        imgBar = new Sprite(t);
+
+        imgWidth = imgBar->getTexture()->getSize().x;
+
+        for (int i = 0; i < BAR_COUNT; ++i)
+        {
+            Pos p;
+            p.x = rand() % WIDTH - imgWidth / 2;
+            p.y = rand() % HEIGHT;
+            vBar.push_back(p);
+        }
+
+        vBar[0].y = HEIGHT - 200;
+    }
+    ~Bar()
+    {
+        delete(imgBar);
+    }
 };
 
 int main(void)
