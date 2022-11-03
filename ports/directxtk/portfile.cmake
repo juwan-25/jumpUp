@@ -1,11 +1,15 @@
-vcpkg_check_linkage(ONLY_STATIC_LIBRARY ONLY_DYNAMIC_CRT)
+vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
+
+if(VCPKG_TARGET_IS_MINGW)
+    message(NOTICE "Building ${PORT} for MinGW requires the HLSL Compiler fxc.exe also be in the PATH. See https://aka.ms/windowssdk.")
+endif()
 
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO Microsoft/DirectXTK
-    REF nov2020
-    SHA512 9d10a851f37deb428c16166cdecf38ffba28a4ab836f9753f071bccc570fcb22ce98271c6bbad9fa1380dddd1fa6602156a7aa1607d347139bda1860fc2210ce
-    HEAD_REF master
+    REF may2022
+    SHA512 739d50c8dfa88a8905e61a797889a33c8b5a32a2e8ded1eea4c4f5fea82a9e8c04f6414ce709410def905d711cf7c8daf40e38579b355071288423b193196444
+    HEAD_REF main
 )
 
 vcpkg_check_features(
@@ -13,36 +17,57 @@ vcpkg_check_features(
     FEATURES
         xaudio2-9 BUILD_XAUDIO_WIN10
         xaudio2-8 BUILD_XAUDIO_WIN8
+        xaudio2redist BUILD_XAUDIO_WIN7
 )
 
-vcpkg_configure_cmake(
-    SOURCE_PATH ${SOURCE_PATH}
-    PREFER_NINJA
-    OPTIONS ${FEATURE_OPTIONS}
-)
-
-if(NOT VCPKG_TARGET_IS_UWP)
-    vcpkg_build_cmake()
+if(VCPKG_TARGET_IS_UWP)
+  set(EXTRA_OPTIONS -DBUILD_TOOLS=OFF)
 else()
-    vcpkg_build_cmake(TARGET DirectXTK)
+  set(EXTRA_OPTIONS -DBUILD_TOOLS=ON)
 endif()
 
-file(INSTALL ${SOURCE_PATH}/Inc/ DESTINATION ${CURRENT_PACKAGES_DIR}/include/DirectXTK)
+vcpkg_cmake_configure(
+    SOURCE_PATH "${SOURCE_PATH}"
+    OPTIONS ${FEATURE_OPTIONS} ${EXTRA_OPTIONS}
+)
 
-file(GLOB_RECURSE DEBUG_LIB ${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-dbg/bin/CMake/*.lib)
-file(GLOB_RECURSE RELEASE_LIB ${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/bin/CMake/*.lib)
-file(INSTALL ${DEBUG_LIB} DESTINATION ${CURRENT_PACKAGES_DIR}/debug/lib)
-file(INSTALL ${RELEASE_LIB} DESTINATION ${CURRENT_PACKAGES_DIR}/lib)
-if(NOT VCPKG_TARGET_IS_UWP)
+vcpkg_cmake_install()
+vcpkg_cmake_config_fixup(CONFIG_PATH share/directxtk/cmake)
+
+if((VCPKG_HOST_IS_WINDOWS) AND (VCPKG_TARGET_ARCHITECTURE MATCHES x64))
+  vcpkg_download_distfile(
+    MAKESPRITEFONT_EXE
+    URLS "https://github.com/Microsoft/DirectXTK/releases/download/may2022/MakeSpriteFont.exe"
+    FILENAME "makespritefont-may2022.exe"
+    SHA512 6f88fec787f9db0823cc0c5aa3d2579248c3dea566909a8d41417f42a3bd2af147ff9af82a3b96a3b1d0f8661dffda27530565bb8fed0a2e7d819d471e51493b
+  )
+
+  vcpkg_download_distfile(
+    XWBTOOL_EXE
+    URLS "https://github.com/Microsoft/DirectXTK/releases/download/may2022/XWBTool.exe"
+    FILENAME "xwbtool-may2022.exe"
+    SHA512 505c7aa7a22ea78a793ba70f136b13548a69b36cd8ec1631969203deff6e93236460c674b219316793aa475f1350ad56f4a3f844e94c3adba0af7b1723c8765e
+  )
+
+  file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/tools/directxtk/")
+
+  file(INSTALL
+    ${MAKESPRITEFONT_EXE}
+    ${XWBTOOL_EXE}
+    DESTINATION "${CURRENT_PACKAGES_DIR}/tools/directxtk/")
+
+  file(RENAME "${CURRENT_PACKAGES_DIR}/tools/directxtk/makespritefont-may2022.exe" "${CURRENT_PACKAGES_DIR}/tools/directxtk/makespritefont.exe")
+  file(RENAME "${CURRENT_PACKAGES_DIR}/tools/directxtk/xwbtool-may2022.exe" "${CURRENT_PACKAGES_DIR}/tools/directxtk/xwbtool.exe")
+
+elseif(NOT VCPKG_TARGET_IS_UWP)
+
   vcpkg_copy_tools(
         TOOL_NAMES XWBTool
-        SEARCH_DIR ${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/bin/CMake
+        SEARCH_DIR "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/bin/CMake"
     )
-    vcpkg_install_msbuild(
-        SOURCE_PATH ${SOURCE_PATH}
-        PROJECT_SUBPATH MakeSpriteFont/MakeSpriteFont.csproj
-        PLATFORM AnyCPU
-    )
+
 endif()
 
-file(INSTALL ${SOURCE_PATH}/LICENSE DESTINATION ${CURRENT_PACKAGES_DIR}/share/${PORT} RENAME copyright)
+file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
+
+file(INSTALL "${SOURCE_PATH}/LICENSE" DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}" RENAME copyright)

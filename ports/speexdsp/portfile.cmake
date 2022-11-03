@@ -16,6 +16,8 @@ else()
         OUT_SOURCE_PATH SOURCE_PATH
         ARCHIVE "${ARCHIVE}"
         REF "1.2.0"
+        PATCHES
+            jitter_ctl.patch
     )
 endif()
 
@@ -40,6 +42,8 @@ vcpkg_configure_cmake(
 
 vcpkg_install_cmake()
 vcpkg_copy_pdbs()
+
+vcpkg_fixup_pkgconfig()
 
 file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/include)
 
